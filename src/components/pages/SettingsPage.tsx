@@ -17,7 +17,6 @@ export const SettingsPage: React.FC = () => {
         <h1 className="text-3xl font-bold">Settings</h1>
       </div>
 
-      {/* Battery Management */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
@@ -39,13 +38,12 @@ export const SettingsPage: React.FC = () => {
             <p className="text-sm text-muted-foreground">Current: {batteryLevel}%</p>
           </div>
           <div className="flex items-center justify-between">
-            <span>Auto Low Power Mode (< 15%)</span>
+            <span>Auto Low Power Mode (&lt; 15%)</span>
             <Switch defaultChecked />
           </div>
         </CardContent>
       </Card>
 
-      {/* Security Settings */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
@@ -73,7 +71,6 @@ export const SettingsPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Privacy Settings */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
@@ -97,7 +94,6 @@ export const SettingsPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Notifications */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
@@ -125,7 +121,6 @@ export const SettingsPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* System Tools */}
       <Card>
         <CardHeader>
           <CardTitle>System Tools</CardTitle>
@@ -152,7 +147,6 @@ export const SettingsPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Additional Features */}
       <Card>
         <CardHeader>
           <CardTitle>Additional Features</CardTitle>
