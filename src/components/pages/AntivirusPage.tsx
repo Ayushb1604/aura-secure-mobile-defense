@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Shield, Search, FileSearch, AlertTriangle, CheckCircle, Zap } from 'lucide-react';
+import { Shield, Search, FileSearch, AlertTriangle, CheckCircle, Zap, Lock } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
