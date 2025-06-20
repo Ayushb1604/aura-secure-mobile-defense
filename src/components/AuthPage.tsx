@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Shield, Lock, Mail, Phone } from 'lucide-react'
+import { Shield, Lock, Mail, Phone, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 
 export function AuthPage() {
@@ -15,16 +15,23 @@ export function AuthPage() {
   const [fullName, setFullName] = useState('')
   const [phone, setPhone] = useState('')
   const [loading, setLoading] = useState(false)
-  const { signIn, signUp, setupMFA } = useAuth()
+  const [showResendButton, setShowResendButton] = useState(false)
+  const { signIn, signUp, setupMFA, resendConfirmation } = useAuth()
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
+    setShowResendButton(false)
 
     try {
       const { error } = await signIn(email, password)
       if (error) {
-        toast.error(error.message || 'Failed to sign in')
+        if (error.code === 'email_not_confirmed') {
+          toast.error(error.error || 'Please confirm your email before signing in')
+          setShowResendButton(true)
+        } else {
+          toast.error(error.error || error.message || 'Failed to sign in')
+        }
       }
     } catch (error: any) {
       toast.error('An unexpected error occurred')
@@ -38,11 +45,12 @@ export function AuthPage() {
     setLoading(true)
 
     try {
-      const { error } = await signUp(email, password, fullName)
+      const { error, message } = await signUp(email, password, fullName)
       if (error) {
-        toast.error(error.message || 'Failed to sign up')
+        toast.error(error.error || error.message || 'Failed to sign up')
       } else {
-        toast.success('Check your email to confirm your account')
+        toast.success(message || 'Account created! Please check your email to confirm your account.')
+        setShowResendButton(true)
       }
     } catch (error: any) {
       toast.error('An unexpected error occurred')
@@ -58,7 +66,28 @@ export function AuthPage() {
     try {
       const { error } = await setupMFA(phone)
       if (error) {
-        toast.error(error.message || 'Failed to setup MFA')
+        toast.error(error.error || error.message || 'Failed to setup MFA')
+      }
+    } catch (error: any) {
+      toast.error('An unexpected error occurred')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleResendConfirmation = async () => {
+    if (!email) {
+      toast.error('Please enter your email address')
+      return
+    }
+
+    setLoading(true)
+    try {
+      const { error } = await resendConfirmation(email)
+      if (error) {
+        toast.error(error.error || error.message || 'Failed to resend confirmation')
+      } else {
+        toast.success('Confirmation email sent! Check your inbox.')
       }
     } catch (error: any) {
       toast.error('An unexpected error occurred')
@@ -124,6 +153,19 @@ export function AuthPage() {
                   <Button type="submit" className="w-full" disabled={loading}>
                     {loading ? 'Signing In...' : 'Sign In'}
                   </Button>
+                  
+                  {showResendButton && (
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      className="w-full" 
+                      onClick={handleResendConfirmation}
+                      disabled={loading}
+                    >
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Resend Confirmation Email
+                    </Button>
+                  )}
                 </form>
               </CardContent>
             </Card>
@@ -174,6 +216,24 @@ export function AuthPage() {
                   <Button type="submit" className="w-full" disabled={loading}>
                     {loading ? 'Creating Account...' : 'Create Account'}
                   </Button>
+                  
+                  {showResendButton && (
+                    <div className="text-center">
+                      <p className="text-sm text-gray-600 mb-2">
+                        Didn't receive the confirmation email?
+                      </p>
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={handleResendConfirmation}
+                        disabled={loading}
+                      >
+                        <Mail className="h-4 w-4 mr-2" />
+                        Resend Email
+                      </Button>
+                    </div>
+                  )}
                 </form>
               </CardContent>
             </Card>
@@ -199,6 +259,9 @@ export function AuthPage() {
                       placeholder="+1 (555) 123-4567"
                       className="mt-1"
                     />
+                    <p className="text-sm text-gray-500 mt-1">
+                      Leave empty to use email-based MFA
+                    </p>
                   </div>
                   <Button type="submit" className="w-full" disabled={loading}>
                     {loading ? 'Setting up MFA...' : 'Setup MFA'}

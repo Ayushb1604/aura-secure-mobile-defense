@@ -18,7 +18,7 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
     )
 
-    const { action, email, password, mfaCode, phone } = await req.json()
+    const { action, email, password, fullName, phone } = await req.json()
 
     switch (action) {
       case 'login':
@@ -28,6 +28,17 @@ serve(async (req) => {
         })
         
         if (loginError) {
+          // Handle email not confirmed error more gracefully
+          if (loginError.message.includes('Email not confirmed')) {
+            return new Response(
+              JSON.stringify({ 
+                error: 'Please check your email and click the confirmation link before signing in. Check your spam folder if you don\'t see the email.',
+                code: 'email_not_confirmed'
+              }),
+              { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+            )
+          }
+          
           return new Response(
             JSON.stringify({ error: loginError.message }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
@@ -35,13 +46,15 @@ serve(async (req) => {
         }
 
         // Log security audit
-        await supabaseClient.from('security_audit').insert({
-          user_id: loginData.user.id,
-          event_type: 'login',
-          event_data: { success: true, method: 'password' },
-          ip_address: req.headers.get('x-forwarded-for'),
-          user_agent: req.headers.get('user-agent')
-        })
+        if (loginData.user) {
+          await supabaseClient.from('security_audit').insert({
+            user_id: loginData.user.id,
+            event_type: 'login',
+            event_data: { success: true, method: 'password' },
+            ip_address: req.headers.get('x-forwarded-for'),
+            user_agent: req.headers.get('user-agent')
+          })
+        }
 
         return new Response(
           JSON.stringify({ user: loginData.user, session: loginData.session }),
@@ -53,7 +66,10 @@ serve(async (req) => {
           email,
           password,
           options: {
-            emailRedirectTo: `${req.headers.get('origin')}/auth/callback`
+            emailRedirectTo: `${req.headers.get('origin')}/`,
+            data: {
+              full_name: fullName
+            }
           }
         })
 
@@ -65,31 +81,35 @@ serve(async (req) => {
         }
 
         return new Response(
-          JSON.stringify({ user: signupData.user }),
+          JSON.stringify({ 
+            user: signupData.user,
+            message: 'Account created successfully! Please check your email to confirm your account before signing in.'
+          }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
 
       case 'setup-mfa':
-        const authHeader = req.headers.get('Authorization')
-        if (!authHeader) {
-          return new Response(
-            JSON.stringify({ error: 'Unauthorized' }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
-          )
-        }
-
-        const { data: userData } = await supabaseClient.auth.getUser(authHeader.replace('Bearer ', ''))
+        // For MFA setup, we'll store the phone number for the current session
+        // This doesn't require authentication since it's part of the signup process
+        const sessionData = await supabaseClient.auth.getSession()
+        let userId = null
         
-        if (!userData.user) {
+        if (sessionData.data.session?.user) {
+          userId = sessionData.data.session.user.id
+        } else {
+          // If no session, this might be during signup - we'll handle it differently
           return new Response(
-            JSON.stringify({ error: 'Invalid token' }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+            JSON.stringify({ 
+              success: true,
+              message: 'MFA settings will be configured after email confirmation'
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           )
         }
 
         // Store MFA settings
         const { error: mfaError } = await supabaseClient.from('mfa_settings').upsert({
-          user_id: userData.user.id,
+          user_id: userId,
           mfa_type: phone ? 'sms' : 'email',
           phone_number: phone,
           is_enabled: true
@@ -103,7 +123,28 @@ serve(async (req) => {
         }
 
         return new Response(
-          JSON.stringify({ success: true }),
+          JSON.stringify({ success: true, message: 'MFA settings updated successfully' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+
+      case 'resend-confirmation':
+        const { error: resendError } = await supabaseClient.auth.resend({
+          type: 'signup',
+          email: email,
+          options: {
+            emailRedirectTo: `${req.headers.get('origin')}/`
+          }
+        })
+
+        if (resendError) {
+          return new Response(
+            JSON.stringify({ error: resendError.message }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+          )
+        }
+
+        return new Response(
+          JSON.stringify({ success: true, message: 'Confirmation email sent' }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
 

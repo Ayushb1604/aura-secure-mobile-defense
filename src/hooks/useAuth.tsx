@@ -12,6 +12,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, fullName?: string) => Promise<{ error: any }>
   signOut: () => Promise<void>
   setupMFA: (phone?: string) => Promise<{ error: any }>
+  resendConfirmation: (email: string) => Promise<{ error: any }>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -25,6 +26,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('Auth state change:', event, session?.user?.email)
         setSession(session)
         setUser(session?.user ?? null)
         setLoading(false)
@@ -39,6 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('Initial session check:', session?.user?.email)
       setSession(session)
       setUser(session?.user ?? null)
       setLoading(false)
@@ -55,6 +58,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       if (response.error) {
         throw response.error
+      }
+
+      if (response.data?.error) {
+        return { error: response.data }
       }
       
       return { error: null }
@@ -78,8 +85,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (response.error) {
         throw response.error
       }
+
+      if (response.data?.error) {
+        return { error: response.data }
+      }
       
-      return { error: null }
+      return { error: null, message: response.data?.message }
     } catch (error: any) {
       console.error('Sign up error:', error)
       return { error }
@@ -103,11 +114,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (response.error) {
         throw response.error
       }
+
+      if (response.data?.error) {
+        return { error: response.data }
+      }
       
-      toast.success('MFA setup completed!')
+      if (response.data?.message) {
+        toast.success(response.data.message)
+      }
+      
       return { error: null }
     } catch (error: any) {
       console.error('MFA setup error:', error)
+      return { error }
+    }
+  }
+
+  const resendConfirmation = async (email: string) => {
+    try {
+      const response = await supabase.functions.invoke('auth-handler', {
+        body: { action: 'resend-confirmation', email }
+      })
+      
+      if (response.error) {
+        throw response.error
+      }
+
+      if (response.data?.error) {
+        return { error: response.data }
+      }
+      
+      return { error: null }
+    } catch (error: any) {
+      console.error('Resend confirmation error:', error)
       return { error }
     }
   }
@@ -120,7 +159,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signIn,
       signUp,
       signOut,
-      setupMFA
+      setupMFA,
+      resendConfirmation
     }}>
       {children}
     </AuthContext.Provider>
