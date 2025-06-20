@@ -1,5 +1,7 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useAuth } from '@/hooks/useAuth';
+import { AuthPage } from '@/components/AuthPage';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { SecurityProvider } from '@/components/SecurityProvider';
 import { MainLayout } from '@/components/MainLayout';
@@ -9,9 +11,35 @@ import { VPNPage } from '@/components/pages/VPNPage';
 import { SafeZonePage } from '@/components/pages/SafeZonePage';
 import { ChatPage } from '@/components/pages/ChatPage';
 import { SettingsPage } from '@/components/pages/SettingsPage';
+import { ThreatMonitor } from '@/components/ThreatMonitor';
+import { PrivacyDashboard } from '@/components/PrivacyDashboard';
+import { AuthProvider } from '@/hooks/useAuth';
 
 const Index = () => {
+  return (
+    <ThemeProvider>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </ThemeProvider>
+  );
+};
+
+const AppContent = () => {
   const [currentPage, setCurrentPage] = useState('dashboard');
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <AuthPage />;
+  }
 
   const renderPage = () => {
     switch (currentPage) {
@@ -27,19 +55,21 @@ const Index = () => {
         return <ChatPage />;
       case 'settings':
         return <SettingsPage />;
+      case 'threats':
+        return <ThreatMonitor />;
+      case 'privacy':
+        return <PrivacyDashboard />;
       default:
         return <Dashboard />;
     }
   };
 
   return (
-    <ThemeProvider>
-      <SecurityProvider>
-        <MainLayout currentPage={currentPage} onPageChange={setCurrentPage}>
-          {renderPage()}
-        </MainLayout>
-      </SecurityProvider>
-    </ThemeProvider>
+    <SecurityProvider>
+      <MainLayout currentPage={currentPage} onPageChange={setCurrentPage}>
+        {renderPage()}
+      </MainLayout>
+    </SecurityProvider>
   );
 };
 

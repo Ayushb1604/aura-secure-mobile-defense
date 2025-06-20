@@ -1,1 +1,14 @@
+
 project_id = "kimorwlrvulgdknvclqc"
+
+[functions.auth-handler]
+verify_jwt = false
+
+[functions.threat-detection]
+verify_jwt = true
+
+[functions.privacy-manager]
+verify_jwt = true
+
+[functions.realtime-threats]
+verify_jwt = false
