@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -45,11 +44,11 @@ export function AuthPage() {
     setLoading(true)
 
     try {
-      const { error, message } = await signUp(email, password, fullName)
+      const { error } = await signUp(email, password, fullName)
       if (error) {
         toast.error(error.error || error.message || 'Failed to sign up')
       } else {
-        toast.success(message || 'Account created! Please check your email to confirm your account.')
+        toast.success('Account created! Please check your email to confirm your account.')
         setShowResendButton(true)
       }
     } catch (error: any) {
